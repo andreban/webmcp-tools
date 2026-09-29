@@ -107,7 +107,79 @@ Before designing or implementing tools, enforce these fundamental principles:
 
 ## Stage 0: Dynamic Stage Assessment & Router
 
-When activated, inspect the workspace and ask the developer to identify their entry point:
+When activated, assess the developer's prompt, artifacts, and workspace to route directly to the appropriate lifecycle stage without friction. Only display the 6-stage menu if the user's intent or current stage is completely unstated or ambiguous.
+
+### Dynamic Routing Rules & Entry Points
+
+1. **Local Codebase Greenfield** (e.g., _"Add WebMCP tools to this project"_):
+   - **Never ask questionnaire questions, what the app does, or to share details**.
+   - Directly respond by referencing inspection of `package.json`, routes, and UI components in the workspace, and immediately present 3 concrete candidate user journeys for **Stage 1 (User Goals Portfolio)**:
+     1. _Search & Filter Items_: ideal outcome: locate items; autonomous boundary: fully autonomous query (`readOnlyHint: true`).
+     2. _Manage Selection / Cart_: ideal outcome: update items; autonomous boundary: autonomous state updates.
+     3. _Checkout / Order Placement_: ideal outcome: finalize transaction; autonomous boundary: strictly non-autonomous, requiring explicit human confirmation hand-off (`consequentialHint: true`).
+   - Explicitly invite the user to select ONE goal from the 3 proposed candidate journeys to begin Stage 2 (enforcing the mandatory **"One Goal Per Iteration"** rule).
+   - Strictly omit application code (`useWebMCP`, `registerTool`) or final schemas in this initial turn.
+
+2. **Preconceived Single Tool** (e.g., _"I want to add a tool to search flights"_):
+   - Convert the tool request into a conversational user goal via the **Iterative Incremental Pathway**.
+   - Define ideal outcomes, required context, and autonomous boundaries for this specific goal.
+   - Advance directly to **Stage 2 (Starting States Matrix)** or **Stage 3 (Role-Play Simulation)** for this goal.
+   - Do NOT force the user to ideate an entire portfolio of unrelated features, and do NOT write code or schemas before role-playing.
+
+3. **Defined User Goals Given** (e.g., _"We already defined our user goals: 1) Search flights, 2) Seat selection. Let's establish starting states"_):
+   - Route directly to **Stage 2 (Starting States Matrix)** without re-ideating goals.
+   - Identify functional application state dimensions (routes, active entities, session/auth).
+   - Aggressively prune diagnostic bloat (`device_battery`, `gpu_temp`, `screen_dpi`).
+
+4. **Goals & Starting States Established** (e.g., _"Goal is 'Order Pizza', starting state is 'empty cart on /menu'. Let's role-play"_):
+   - Route directly to **Stage 3 (Turn-by-Turn Role-Playing)** simulating the 6 core turn elements.
+   - Adhere strictly to character limits (names ≤ 30 chars, payloads ≤ 1,500 chars).
+   - Trigger the mandatory **User Critique Loop** on agent demeanor/tone, clarifying questions, and autonomous confirmation boundaries.
+
+5. **Baseline Role-Play Given** (e.g., _"Here is our happy path transcript... How do we make it robust?"_):
+   - Route directly to **Stage 4 (Variations & Graceful Failure)**.
+   - Explore missing required parameters, prerequisite violations, over-constrained queries, conversational coreference, and human confirmation hand-offs (`consequentialHint: true`).
+
+6. **Approved Role-Plays Given** (e.g., _"Here are our approved role-play transcripts. Generate schemas and evals"_):
+   - Route directly to **Stage 5 (Cross-Goal Tool Consolidation & Evals Generation)**.
+   - Apply polymorphic consolidation (`list_items`, `move_items` batching) rather than entity CRUD bloat.
+   - Enforce "What + When" descriptions, strip internal implementation jargon (Zustand, Axum, REST), and audit annotations (`readOnlyHint`, `consequentialHint`, `untrustedContentHint`).
+   - Proactively offer the local evaluation gate (`npx webmcp-evals local`).
+
+7. **Existing Schema Provided for Evals** (e.g., _"I already have a schema.json... Generate evals.json"_):
+   - Route directly to **Stage 5 (Evals Generation)** or ask to view `schema.json` without forcing Stages 1–4.
+
+8. **Existing Schema Provided for Code** (e.g., _"Here is my schema.json... Help me implement these tools in React"_):
+   - Route directly to **Stage 6 (Application Implementation)** without reopening conversational design.
+   - For React, use `use-webmcp-tool` (`useWebMCP`), declare stable/hoisted schema literals outside components to avoid re-registration churn, and provide a unit test with React Testing Library (RTL) mocking `document.modelContext.registerTool`. For Angular, use `provideExperimentalWebMcpTools`; for Vanilla JS, use `document.modelContext.registerTool`.
+
+9. **Live Site Greenfield / URL Given** (e.g., _"I want to add WebMCP tools to example.com"_):
+   - Clarify that WebMCP runs client-side in the browser tab on `document.modelContext` (requiring first-party site code or extension/content script execution). Explicitly distinguish it from external headless scraping (Puppeteer, Playwright, or DOM clicking).
+   - **Discovery Guidance (Mandatory)**: Before defining goals, explicitly recommend using browser capabilities to explore the site's live workflows—specifically instruct the developer to use the `/browser` command to navigate pages or check `/llms.txt` for documented machine-readable site maps.
+   - Route to **Stage 1 (User Goals Portfolio)**: propose or offer to inspect 3 candidate user journeys (e.g., search catalog, manage cart, checkout) with ideal outcomes and autonomous boundaries.
+   - Strictly avoid outputting frontend code before defining goals.
+
+10. **Live Site Tool Audit** (e.g., _"Can you give feedback on the tools on example.com?"_):
+    - Explicitly mention all live inspection methods: inspecting in the Chrome DevTools **Application > WebMCP pane**, running `await document.modelContext.getTools()` in the console, or using the `/browser` command to inspect the live page.
+    - Route directly to **Stage 6 Review Checklist & Auditing** rather than restarting Stage 1 ideation from scratch.
+    - Audit tool annotations (specifically `readOnlyHint` for queries, `consequentialHint` for navigation, or `untrustedContentHint` for UGC), verify character budgets (names ≤ 30 chars, descriptions ≤ 500 chars), remove implementation jargon, and explicitly suggest running the Chrome Lighthouse "Agentic browsing" audit category and verifying DevTools manual execution via the Play icon.
+
+11. **Local Codebase Audit** (e.g., _"Can you audit our existing WebMCP tools in src/tools/?"_):
+    - Immediately route directly to **Stage 6 Review Checklist & Auditing**.
+    - Systematically perform and output the audit against all 5 core checklist criteria:
+      1. _Character budgets_: verify tool and parameter names ≤ 30 chars, descriptions ≤ 500 chars (enforcing "What + When" without schema repetition or internal jargon).
+      2. _Unhandled rejections_: audit that tools return actionable error guidance rather than unhandled Promise rejections.
+      3. _UI view navigation_: audit that tools shifting views or tabs declare `consequentialHint: true` (and strictly omit `readOnlyHint: true`).
+      4. _UGC / Untrusted content_: audit that tools returning user-generated text declare `untrustedContentHint: true`.
+      5. _DevTools & Lighthouse readiness_: verify live inspection in the Chrome DevTools Application > WebMCP pane and running the Lighthouse "Agentic browsing" audit.
+
+12. **Protocol Disambiguation / Anti-Triggering** (e.g., _"Create a Python stdio MCP server for Claude Desktop"_):
+    - Clarify that WebMCP is specifically for client-side in-browser tools on `document.modelContext`, whereas backend MCP runs over `stdio`/SSE in Node/Python.
+    - Either redirect or clarify the protocol boundary rather than incorrectly attempting to use `document.modelContext` in a Node/Python backend.
+
+### Default Ambiguous Entry Point Menu
+
+If the developer's entry point cannot be inferred from context, ask:
 
 ```markdown
 Where would you like to start?
